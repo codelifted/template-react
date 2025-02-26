@@ -1,7 +1,7 @@
-FROM node:18-alpine
+FROM nginx:alpine
 
-# Install http-server globally
-RUN npm install -g http-server
+# Install Node.js and npm for building the React app
+RUN apk add --no-cache nodejs npm
 
 # Set working directory for the React app
 WORKDIR /app
@@ -19,11 +19,20 @@ COPY . ./
 # Build the React application
 RUN npm run build
 
-# Set the working directory to the build output
-WORKDIR /app/build
+# Remove default Nginx configuration
+RUN rm /etc/nginx/conf.d/default.conf
 
-# Expose port 8080 (http-server default)
-EXPOSE 8080
+# Copy custom Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Start http-server
-CMD ["http-server", "-p", "8080"]
+# Move the built React app to Nginx's serving directory
+RUN mv /app/build /usr/share/nginx/html
+
+# Clean up Node.js and npm to reduce image size (optional, but recommended)
+RUN apk del nodejs npm
+
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
