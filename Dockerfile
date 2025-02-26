@@ -1,29 +1,14 @@
-FROM node:18-alpine
-
-# Install http-server globally
-RUN npm install -g http-server
-
-# Set working directory for the React app
+# Stage 1: Build the React app
+FROM node:16 AS builder
 WORKDIR /app
-
-# Copy package.json and package-lock.json
-COPY package.json ./
-COPY package-lock.json* ./
-
-# Install dependencies
-RUN npm install --legacy-peer-deps
-
-# Copy the rest of the React app source
-COPY . ./
-
-# Build the React application
+COPY package.json package-lock.json ./
+RUN npm install
+COPY . .
 RUN npm run build
 
-# Set the working directory to the build output
-WORKDIR /app/build
-
-# Expose port 8080 (http-server default)
-EXPOSE 8080
-
-# Start http-server
-CMD ["http-server", "-p", "8080"]
+# Stage 2: Serve with NGINX
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
