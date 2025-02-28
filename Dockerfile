@@ -8,6 +8,11 @@ ARG KEYCLOAK_URL
 ARG KEYCLOAK_CLIENT_ID
 ARG KEYCLOAK_CLIENT_SECRET
 
+# Print environment variables to build logs
+RUN echo "Environment variables during build:" && \
+    echo "REACT_APP_KEYCLOAK_URL=$KEYCLOAK_URL" && \
+    echo "REACT_APP_KEYCLOAK_CLIENT_ID=$KEYCLOAK_CLIENT_ID"
+
 RUN REACT_APP_KEYCLOAK_URL=$KEYCLOAK_URL \
     REACT_APP_KEYCLOAK_CLIENT_ID=$KEYCLOAK_CLIENT_ID \
     npm run build
