@@ -2,18 +2,20 @@ import React, { useState } from 'react';
 import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
 
 function App() {
+  // Existing state variables...
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regFirstName, setRegFirstName] = useState('');
   const [regLastName, setRegLastName] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [token, setToken] = useState('');
+
+  // Add new state for verification username
+  const [verifyUsername, setVerifyUsername] = useState('');
 
   const poolData = {
     UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
@@ -21,7 +23,7 @@ function App() {
   };
   const userPool = new CognitoUserPool(poolData);
 
-  // Handle registration
+  // Handle registration (unchanged)
   const handleRegister = async (e) => {
     e.preventDefault();
     const attributeList = [
@@ -43,10 +45,10 @@ function App() {
     });
   };
 
-  // Handle email verification
+  // Updated handleVerify to use verifyUsername
   const handleVerify = async (e) => {
     e.preventDefault();
-    const user = new CognitoUser({ Username: regUsername, Pool: userPool });
+    const user = new CognitoUser({ Username: verifyUsername, Pool: userPool });
     user.confirmRegistration(verificationCode, true, (err, result) => {
       if (err) {
         alert('Verification failed: ' + err.message);
@@ -54,10 +56,11 @@ function App() {
       }
       alert('Email verified successfully. You can now log in.');
       setVerificationCode('');
+      setVerifyUsername(''); // Clear after successful verification
     });
   };
 
-  // Handle login
+  // Handle login (unchanged)
   const handleLogin = async (e) => {
     e.preventDefault();
     const user = new CognitoUser({ Username: loginUsername, Pool: userPool });
@@ -77,7 +80,7 @@ function App() {
     });
   };
 
-  // Handle logout
+  // Handle logout (unchanged)
   const handleLogout = () => {
     setIsLoggedIn(false);
     setToken('');
@@ -87,6 +90,7 @@ function App() {
     <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
       {!isLoggedIn ? (
         <div>
+          {/* Registration form unchanged */}
           <h2>Register</h2>
           <form onSubmit={handleRegister}>
             <div style={{ marginBottom: '10px' }}>
@@ -139,8 +143,18 @@ function App() {
             </button>
           </form>
 
+          {/* Updated verification form with username input */}
           <h2>Verify Email</h2>
           <form onSubmit={handleVerify}>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Username"
+                value={verifyUsername}
+                onChange={(e) => setVerifyUsername(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
             <div style={{ marginBottom: '10px' }}>
               <input
                 type="text"
@@ -155,6 +169,7 @@ function App() {
             </button>
           </form>
 
+          {/* Login form unchanged */}
           <h2>Login</h2>
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '10px' }}>
