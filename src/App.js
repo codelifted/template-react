@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
 
 function App() {
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regFirstName, setRegFirstName] = useState(''); // New field
-  const [regLastName, setRegLastName] = useState('');   // New field
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
 
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -14,47 +15,69 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [token, setToken] = useState('');
 
+  const poolData = {
+    UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
+    ClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
+  };
+  const userPool = new CognitoUserPool(poolData);
+
   // Handle registration
   const handleRegister = async (e) => {
     e.preventDefault();
-    try {
-      await axios.post('https://backend.hello-world.local.codelifted.com/register', {
-        username: regUsername,
-        email: regEmail,
-        password: regPassword,
-        firstName: regFirstName, // Include firstName
-        lastName: regLastName,   // Include lastName
-      });
-      alert('Registration successful. Please check your email to verify your account.');
+    const attributeList = [
+      new CognitoUserAttribute({ Name: 'email', Value: regEmail }),
+      new CognitoUserAttribute({ Name: 'given_name', Value: regFirstName }),
+      new CognitoUserAttribute({ Name: 'family_name', Value: regLastName }),
+    ];
+    userPool.signUp(regUsername, regPassword, attributeList, null, (err, result) => {
+      if (err) {
+        alert('Registration failed: ' + err.message);
+        return;
+      }
+      alert('Registration successful. Please check your email for a verification code.');
       setRegUsername('');
       setRegEmail('');
       setRegPassword('');
-      setRegFirstName(''); // Reset firstName
-      setRegLastName('');  // Reset lastName
-    } catch (error) {
-      alert('Registration failed: ' + (error.response?.data?.error || 'Unknown error'));
-    }
+      setRegFirstName('');
+      setRegLastName('');
+    });
   };
 
-  // Handle login (unchanged)
+  // Handle email verification
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    const user = new CognitoUser({ Username: regUsername, Pool: userPool });
+    user.confirmRegistration(verificationCode, true, (err, result) => {
+      if (err) {
+        alert('Verification failed: ' + err.message);
+        return;
+      }
+      alert('Email verified successfully. You can now log in.');
+      setVerificationCode('');
+    });
+  };
+
+  // Handle login
   const handleLogin = async (e) => {
     e.preventDefault();
-    try {
-      const response = await axios.post('https://backend.hello-world.local.codelifted.com/login', {
-        username: loginUsername,
-        password: loginPassword,
-      });
-      setToken(response.data.access_token);
-      setIsLoggedIn(true);
-      alert('Login successful');
-      setLoginUsername('');
-      setLoginPassword('');
-    } catch (error) {
-      alert('Login failed: ' + (error.response?.data?.error || 'Unknown error'));
-    }
+    const user = new CognitoUser({ Username: loginUsername, Pool: userPool });
+    const authDetails = new AuthenticationDetails({ Username: loginUsername, Password: loginPassword });
+    user.authenticateUser(authDetails, {
+      onSuccess: (session) => {
+        const idToken = session.getIdToken().getJwtToken();
+        setToken(idToken);
+        setIsLoggedIn(true);
+        alert('Login successful');
+        setLoginUsername('');
+        setLoginPassword('');
+      },
+      onFailure: (err) => {
+        alert('Login failed: ' + err.message);
+      },
+    });
   };
 
-  // Handle logout (unchanged)
+  // Handle logout
   const handleLogout = () => {
     setIsLoggedIn(false);
     setToken('');
@@ -113,6 +136,22 @@ function App() {
             </div>
             <button type="submit" style={{ width: '100%', padding: '10px' }}>
               Register
+            </button>
+          </form>
+
+          <h2>Verify Email</h2>
+          <form onSubmit={handleVerify}>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Verification Code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <button type="submit" style={{ width: '100%', padding: '10px' }}>
+              Verify
             </button>
           </form>
 
