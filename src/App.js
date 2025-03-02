@@ -16,12 +16,12 @@ function App() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://backend.hello-world.local.codelifted.com/register', {
+      await axios.post('https://backend.hello-world.local.codelifted.com/register', {
         username: regUsername,
         email: regEmail,
         password: regPassword,
       });
-      alert('Registration successful');
+      alert('Registration successful. Please check your email to verify your account.');
       setRegUsername('');
       setRegEmail('');
       setRegPassword('');
@@ -34,7 +34,7 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://backend.hello-world.local.codelifted.com/login', {
+      const response = await axios.post('https://backend.hello-world.local.codelifted.com/login', {
         username: loginUsername,
         password: loginPassword,
       });
