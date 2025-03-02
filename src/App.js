@@ -1,37 +1,104 @@
-import React, { useState } from 'react';
-import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
+import React, { useState, useEffect } from 'react';
+import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
 
 function App() {
+  const [regUsername, setRegUsername] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verifyUsername, setVerifyUsername] = useState('');
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [token, setToken] = useState('');
-  const [protectedData, setProtectedData] = useState(null);
+  const [gatedContent, setGatedContent] = useState(null); // New state for backend response
 
-  // Configure Cognito User Pool
   const poolData = {
     UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
     ClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
   };
   const userPool = new CognitoUserPool(poolData);
 
-  // Handle login and fetch token
+  // Fetch gated content from backend after login
+  useEffect(() => {
+    const fetchGatedContent = async () => {
+      if (!isLoggedIn || !token) return;
+
+      try {
+        const response = await fetch('https://backend.hello-world.local.codelifted.com/protected', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch gated content');
+        }
+
+        const data = await response.json();
+        setGatedContent(data);
+      } catch (error) {
+        console.error('Error fetching gated content:', error);
+        setGatedContent({ error: 'Failed to load gated content' });
+      }
+    };
+
+    fetchGatedContent();
+  }, [isLoggedIn, token]); // Runs when isLoggedIn or token changes
+
+  // Handle registration (unchanged)
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    const attributeList = [
+      new CognitoUserAttribute({ Name: 'email', Value: regEmail }),
+      new CognitoUserAttribute({ Name: 'given_name', Value: regFirstName }),
+      new CognitoUserAttribute({ Name: 'family_name', Value: regLastName }),
+    ];
+    userPool.signUp(regUsername, regPassword, attributeList, null, (err, result) => {
+      if (err) {
+        alert('Registration failed: ' + err.message);
+        return;
+      }
+      alert('Registration successful. Please check your email for a verification code.');
+      setRegUsername('');
+      setRegEmail('');
+      setRegPassword('');
+      setRegFirstName('');
+      setRegLastName('');
+    });
+  };
+
+  // Handle email verification (unchanged)
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    const user = new CognitoUser({ Username: verifyUsername, Pool: userPool });
+    user.confirmRegistration(verificationCode, true, (err, result) => {
+      if (err) {
+        alert('Verification failed: ' + err.message);
+        return;
+      }
+      alert('Email verified successfully. You can now log in.');
+      setVerificationCode('');
+      setVerifyUsername('');
+    });
+  };
+
+  // Handle login (unchanged)
   const handleLogin = async (e) => {
     e.preventDefault();
     const user = new CognitoUser({ Username: loginUsername, Pool: userPool });
-    const authDetails = new AuthenticationDetails({
-      Username: loginUsername,
-      Password: loginPassword,
-    });
-
+    const authDetails = new AuthenticationDetails({ Username: loginUsername, Password: loginPassword });
     user.authenticateUser(authDetails, {
       onSuccess: (session) => {
         const idToken = session.getIdToken().getJwtToken();
         setToken(idToken);
         setIsLoggedIn(true);
         alert('Login successful');
-        // Call the backend with the token
-        fetchProtectedData(idToken);
+        setLoginUsername('');
+        setLoginPassword('');
       },
       onFailure: (err) => {
         alert('Login failed: ' + err.message);
@@ -39,39 +106,94 @@ function App() {
     });
   };
 
-  // Fetch protected data from the backend
-  const fetchProtectedData = async (token) => {
-    try {
-      const response = await fetch('https://backend.hello-world.local.codelifted.com/protected', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch protected data');
-      }
-
-      const data = await response.json();
-      setProtectedData(data);
-    } catch (error) {
-      console.error('Error fetching protected data:', error);
-      alert('Failed to fetch protected data');
-    }
-  };
-
-  // Handle logout
+  // Handle logout (unchanged)
   const handleLogout = () => {
     setIsLoggedIn(false);
     setToken('');
-    setProtectedData(null);
+    setGatedContent(null); // Clear gated content on logout
   };
 
   return (
     <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
       {!isLoggedIn ? (
         <div>
+          <h2>Register</h2>
+          <form onSubmit={handleRegister}>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Username"
+                value={regUsername}
+                onChange={(e) => setRegUsername(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="email"
+                placeholder="Email"
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="First Name"
+                value={regFirstName}
+                onChange={(e) => setRegFirstName(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Last Name"
+                value={regLastName}
+                onChange={(e) => setRegLastName(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="password"
+                placeholder="Password"
+                value={regPassword}
+                onChange={(e) => setRegPassword(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <button type="submit" style={{ width: '100%', padding: '10px' }}>
+              Register
+            </button>
+          </form>
+
+          <h2>Verify Email</h2>
+          <form onSubmit={handleVerify}>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Username"
+                value={verifyUsername}
+                onChange={(e) => setVerifyUsername(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Verification Code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <button type="submit" style={{ width: '100%', padding: '10px' }}>
+              Verify
+            </button>
+          </form>
+
           <h2>Login</h2>
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '10px' }}>
@@ -101,11 +223,14 @@ function App() {
         <div>
           <h2>Welcome, you are logged in!</h2>
           <p><strong>Token:</strong> {token}</p>
-          {protectedData && (
+          {gatedContent ? (
             <div>
-              <h3>Protected Data</h3>
-              <pre>{JSON.stringify(protectedData, null, 2)}</pre>
+              <h3>Gated Content:</h3>
+              <p><strong>Message:</strong> {gatedContent.message}</p>
+              <p><strong>User Info:</strong> {JSON.stringify(gatedContent.user)}</p>
             </div>
+          ) : (
+            <p>Loading gated content...</p>
           )}
           <button onClick={handleLogout} style={{ padding: '10px' }}>
             Logout
