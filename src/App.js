@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
-import jwtDecode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode'; // Changed from 'import jwtDecode from "jwt-decode"'
 import {
   AppBar, Toolbar, Typography, Button, Container, Grid, Card, CardContent, CardActions,
   TextField, Box, Dialog, DialogTitle, DialogContent, DialogActions, CssBaseline, ThemeProvider,
@@ -42,7 +42,6 @@ function App() {
   };
   const userPool = new CognitoUserPool(poolData);
 
-  // Check for existing tokens on mount
   useEffect(() => {
     const storedToken = localStorage.getItem('idToken');
     const storedRefreshToken = localStorage.getItem('refreshToken');
@@ -59,7 +58,6 @@ function App() {
     }
   }, []);
 
-  // Fetch projects when logged in
   useEffect(() => {
     if (isLoggedIn && token) {
       fetchProjects();
