@@ -1,78 +1,37 @@
 import React, { useState } from 'react';
-import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
+import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
 
 function App() {
-  // Existing state variables...
-  const [regUsername, setRegUsername] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regFirstName, setRegFirstName] = useState('');
-  const [regLastName, setRegLastName] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [token, setToken] = useState('');
+  const [protectedData, setProtectedData] = useState(null);
 
-  // Add new state for verification username
-  const [verifyUsername, setVerifyUsername] = useState('');
-
+  // Configure Cognito User Pool
   const poolData = {
     UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
     ClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
   };
   const userPool = new CognitoUserPool(poolData);
 
-  // Handle registration (unchanged)
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    const attributeList = [
-      new CognitoUserAttribute({ Name: 'email', Value: regEmail }),
-      new CognitoUserAttribute({ Name: 'given_name', Value: regFirstName }),
-      new CognitoUserAttribute({ Name: 'family_name', Value: regLastName }),
-    ];
-    userPool.signUp(regUsername, regPassword, attributeList, null, (err, result) => {
-      if (err) {
-        alert('Registration failed: ' + err.message);
-        return;
-      }
-      alert('Registration successful. Please check your email for a verification code.');
-      setRegUsername('');
-      setRegEmail('');
-      setRegPassword('');
-      setRegFirstName('');
-      setRegLastName('');
-    });
-  };
-
-  // Updated handleVerify to use verifyUsername
-  const handleVerify = async (e) => {
-    e.preventDefault();
-    const user = new CognitoUser({ Username: verifyUsername, Pool: userPool });
-    user.confirmRegistration(verificationCode, true, (err, result) => {
-      if (err) {
-        alert('Verification failed: ' + err.message);
-        return;
-      }
-      alert('Email verified successfully. You can now log in.');
-      setVerificationCode('');
-      setVerifyUsername(''); // Clear after successful verification
-    });
-  };
-
-  // Handle login (unchanged)
+  // Handle login and fetch token
   const handleLogin = async (e) => {
     e.preventDefault();
     const user = new CognitoUser({ Username: loginUsername, Pool: userPool });
-    const authDetails = new AuthenticationDetails({ Username: loginUsername, Password: loginPassword });
+    const authDetails = new AuthenticationDetails({
+      Username: loginUsername,
+      Password: loginPassword,
+    });
+
     user.authenticateUser(authDetails, {
       onSuccess: (session) => {
         const idToken = session.getIdToken().getJwtToken();
         setToken(idToken);
         setIsLoggedIn(true);
         alert('Login successful');
-        setLoginUsername('');
-        setLoginPassword('');
+        // Call the backend with the token
+        fetchProtectedData(idToken);
       },
       onFailure: (err) => {
         alert('Login failed: ' + err.message);
@@ -80,96 +39,39 @@ function App() {
     });
   };
 
-  // Handle logout (unchanged)
+  // Fetch protected data from the backend
+  const fetchProtectedData = async (token) => {
+    try {
+      const response = await fetch('https://backend.hello-world.local.codelifted.com/protected', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch protected data');
+      }
+
+      const data = await response.json();
+      setProtectedData(data);
+    } catch (error) {
+      console.error('Error fetching protected data:', error);
+      alert('Failed to fetch protected data');
+    }
+  };
+
+  // Handle logout
   const handleLogout = () => {
     setIsLoggedIn(false);
     setToken('');
+    setProtectedData(null);
   };
 
   return (
     <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
       {!isLoggedIn ? (
         <div>
-          {/* Registration form unchanged */}
-          <h2>Register</h2>
-          <form onSubmit={handleRegister}>
-            <div style={{ marginBottom: '10px' }}>
-              <input
-                type="text"
-                placeholder="Username"
-                value={regUsername}
-                onChange={(e) => setRegUsername(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
-              />
-            </div>
-            <div style={{ marginBottom: '10px' }}>
-              <input
-                type="email"
-                placeholder="Email"
-                value={regEmail}
-                onChange={(e) => setRegEmail(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
-              />
-            </div>
-            <div style={{ marginBottom: '10px' }}>
-              <input
-                type="text"
-                placeholder="First Name"
-                value={regFirstName}
-                onChange={(e) => setRegFirstName(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
-              />
-            </div>
-            <div style={{ marginBottom: '10px' }}>
-              <input
-                type="text"
-                placeholder="Last Name"
-                value={regLastName}
-                onChange={(e) => setRegLastName(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
-              />
-            </div>
-            <div style={{ marginBottom: '10px' }}>
-              <input
-                type="password"
-                placeholder="Password"
-                value={regPassword}
-                onChange={(e) => setRegPassword(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
-              />
-            </div>
-            <button type="submit" style={{ width: '100%', padding: '10px' }}>
-              Register
-            </button>
-          </form>
-
-          {/* Updated verification form with username input */}
-          <h2>Verify Email</h2>
-          <form onSubmit={handleVerify}>
-            <div style={{ marginBottom: '10px' }}>
-              <input
-                type="text"
-                placeholder="Username"
-                value={verifyUsername}
-                onChange={(e) => setVerifyUsername(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
-              />
-            </div>
-            <div style={{ marginBottom: '10px' }}>
-              <input
-                type="text"
-                placeholder="Verification Code"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
-              />
-            </div>
-            <button type="submit" style={{ width: '100%', padding: '10px' }}>
-              Verify
-            </button>
-          </form>
-
-          {/* Login form unchanged */}
           <h2>Login</h2>
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '10px' }}>
@@ -199,6 +101,12 @@ function App() {
         <div>
           <h2>Welcome, you are logged in!</h2>
           <p><strong>Token:</strong> {token}</p>
+          {protectedData && (
+            <div>
+              <h3>Protected Data</h3>
+              <pre>{JSON.stringify(protectedData, null, 2)}</pre>
+            </div>
+          )}
           <button onClick={handleLogout} style={{ padding: '10px' }}>
             Logout
           </button>
