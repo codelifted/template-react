@@ -5,6 +5,8 @@ function App() {
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [regFirstName, setRegFirstName] = useState(''); // New field
+  const [regLastName, setRegLastName] = useState('');   // New field
 
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -20,17 +22,21 @@ function App() {
         username: regUsername,
         email: regEmail,
         password: regPassword,
+        firstName: regFirstName, // Include firstName
+        lastName: regLastName,   // Include lastName
       });
       alert('Registration successful. Please check your email to verify your account.');
       setRegUsername('');
       setRegEmail('');
       setRegPassword('');
+      setRegFirstName(''); // Reset firstName
+      setRegLastName('');  // Reset lastName
     } catch (error) {
       alert('Registration failed: ' + (error.response?.data?.error || 'Unknown error'));
     }
   };
 
-  // Handle login
+  // Handle login (unchanged)
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -48,7 +54,7 @@ function App() {
     }
   };
 
-  // Handle logout
+  // Handle logout (unchanged)
   const handleLogout = () => {
     setIsLoggedIn(false);
     setToken('');
@@ -75,6 +81,24 @@ function App() {
                 placeholder="Email"
                 value={regEmail}
                 onChange={(e) => setRegEmail(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="First Name"
+                value={regFirstName}
+                onChange={(e) => setRegFirstName(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                placeholder="Last Name"
+                value={regLastName}
+                onChange={(e) => setRegLastName(e.target.value)}
                 style={{ width: '100%', padding: '8px' }}
               />
             </div>
