@@ -14,7 +14,7 @@ import PersonIcon from '@mui/icons-material/Person';
 
 const CustomPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
-  borderRadius: 16,
+  borderRadius: 8,
   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
   backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff',
 }));
@@ -108,8 +108,16 @@ function App() {
         <AppBar position="static">
           <Toolbar sx={{ justifyContent: 'space-between' }}>
             <Typography variant="h2" sx={{ flexGrow: 1 }}>
-              SaaSify
+              Codelifted
             </Typography>
+            <Box>
+              <Button variant="outlined" color="primary" onClick={() => navigate('/profile')} sx={{ mr: 2 }}>
+                Profile
+              </Button>
+              <Button variant="outlined" color="secondary" onClick={handleLogout}>
+                Logout
+              </Button>
+            </Box>
             <Switch
               checked={darkMode}
               onChange={toggleDarkMode}
@@ -381,7 +389,7 @@ function AuthWrapper() {
         <Container maxWidth="sm" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <CustomPaper elevation={3}>
             <Typography variant="h1" gutterBottom>Create Account</Typography>
-            <Box sx={{ maxWidth: 400, margin: '0 auto' }}>
+            <Box sx={{ maxWidth: '500px', margin: '0 auto' }}>
               <form onSubmit={handleRegister}>
                 <Stack spacing={2}>
                   <TextField
@@ -582,8 +590,6 @@ function AuthWrapper() {
             openDialog={openDialog}
             setOpenDialog={setOpenDialog}
             handleCreateProject={handleCreateProject}
-            handleLogout={handleLogout}
-            navigate={navigate}
           />
         ) : (
           <Navigate to="/login" replace />
@@ -593,44 +599,34 @@ function AuthWrapper() {
   );
 }
 
-function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject, handleLogout, navigate }) {
+function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject }) {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h1">Your Projects</Typography>
-        <Box>
-          <Button variant="outlined" color="primary" onClick={() => navigate('/profile')} sx={{ mr: 2 }}>
-            Profile
-          </Button>
-          <Button variant="outlined" color="secondary" onClick={handleLogout}>
-            Logout
-          </Button>
-        </Box>
-      </Box>
-      <Paper elevation={3} sx={{ p: 4, borderRadius: 16 }}>
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
           <Button variant="contained" color="primary" onClick={onCreateProject}>
             New Project
           </Button>
         </Box>
-        <Grid container spacing={3}>
-          {projects.map((project) => (
-            <Grid item xs={12} sm={6} md={4} key={project.id}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h2">{project.name}</Typography>
-                </CardContent>
-                <CardActions>
-                  <Button size="small" color="secondary" onClick={() => onDeleteProject(project.id)}>
-                    Delete
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} PaperProps={{ sx: { borderRadius: 16 } }}>
+      </Box>
+      <Grid container spacing={3}>
+        {projects.map((project) => (
+          <Grid item xs={12} sm={6} md={4} key={project.id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h2">{project.name}</Typography>
+              </CardContent>
+              <CardActions>
+                <Button size="small" color="secondary" onClick={() => onDeleteProject(project.id)}>
+                  Delete
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} PaperProps={{ sx: { borderRadius: '6px' } }}>
         <DialogTitle>Create New Project</DialogTitle>
         <DialogContent>
           <TextField
