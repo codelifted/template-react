@@ -22,8 +22,8 @@ const CustomPaper = styled(Paper)(({ theme }) => ({
 const createAppTheme = (mode) => createTheme({
   palette: {
     mode,
-    primary: { main: '#4CAF50' }, // Green for growth and innovation
-    secondary: { main: '#2196F3' }, // Blue for trust and professionalism
+    primary: { main: '#4CAF50' },
+    secondary: { main: '#2196F3' },
     background: {
       default: mode === 'dark' ? '#121212' : '#F9FAFB',
       paper: mode === 'dark' ? '#1E293B' : '#FFFFFF',
@@ -131,6 +131,7 @@ function AuthWrapper() {
   const [regPassword, setRegPassword] = useState('');
   const [regFirstName, setRegFirstName] = useState('');
   const [regLastName, setRegLastName] = useState('');
+  const [verifyUsername, setVerifyUsername] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -140,7 +141,6 @@ function AuthWrapper() {
   const [projects, setProjects] = useState([]);
   const [newProjectName, setNewProjectName] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const [showVerify, setShowVerify] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formErrors, setFormErrors] = useState({});
@@ -262,22 +262,26 @@ function AuthWrapper() {
     userPool.signUp(regUsername, regPassword, attributeList, null, (err) => {
       setIsRegistering(false);
       if (err) {
-        alert('Registration failed: ' + err.message);
+        if (err.code === 'UsernameExistsException') {
+          setVerifyUsername(regUsername);
+          navigate('/verify');
+        } else {
+          alert('Registration failed: ' + err.message);
+        }
         return;
       }
-      alert('Registration successful. Please enter the verification code sent to your email.');
-      setRegUsername('');
-      setRegEmail('');
-      setRegPassword('');
-      setRegFirstName('');
-      setRegLastName('');
-      setShowVerify(true);
+      setVerifyUsername(regUsername);
+      navigate('/verify');
     });
   };
 
   const handleVerify = async (e) => {
     e.preventDefault();
-    const user = new CognitoUser({ Username: regUsername, Pool: userPool });
+    if (!verifyUsername || verifyUsername.trim().length < 1) {
+      alert('Please enter a valid username for verification');
+      return;
+    }
+    const user = new CognitoUser({ Username: verifyUsername.trim(), Pool: userPool });
     user.confirmRegistration(verificationCode, true, (err) => {
       if (err) {
         alert('Verification failed: ' + err.message);
@@ -285,8 +289,23 @@ function AuthWrapper() {
       }
       alert('Email verified successfully. You can now log in.');
       setVerificationCode('');
-      setShowVerify(false);
+      setVerifyUsername('');
       navigate('/login');
+    });
+  };
+
+  const handleResendCode = () => {
+    if (!verifyUsername || verifyUsername.trim().length < 1) {
+      alert('Please enter a valid username to resend the code');
+      return;
+    }
+    const user = new CognitoUser({ Username: verifyUsername.trim(), Pool: userPool });
+    user.resendConfirmationCode((err) => {
+      if (err) {
+        alert('Failed to resend code: ' + err.message);
+        return;
+      }
+      alert('Verification code resent successfully');
     });
   };
 
@@ -313,7 +332,12 @@ function AuthWrapper() {
       },
       onFailure: (err) => {
         setIsLoggingIn(false);
-        alert('Login failed: ' + err.message);
+        if (err.code === 'UserNotConfirmedException') {
+          setVerifyUsername(loginUsername);
+          navigate('/verify');
+        } else {
+          alert('Login failed: ' + err.message);
+        }
       },
     });
   };
@@ -421,25 +445,6 @@ function AuthWrapper() {
               <Typography sx={{ mt: 2, color: 'text.secondary', textAlign: 'center' }}>
                 Already have an account? <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Sign In</Link>
               </Typography>
-              {showVerify && (
-                <Box sx={{ mt: 4 }}>
-                  <Typography variant="h1" gutterBottom>Verify Email</Typography>
-                  <form onSubmit={handleVerify}>
-                    <Stack spacing={2}>
-                      <TextField
-                        fullWidth
-                        label="Verification Code"
-                        value={verificationCode}
-                        onChange={(e) => setVerificationCode(e.target.value)}
-                        variant="outlined"
-                      />
-                      <Button type="submit" variant="contained" fullWidth sx={{ mt: 2, py: 1.5 }}>
-                        Verify
-                      </Button>
-                    </Stack>
-                  </form>
-                </Box>
-              )}
             </Box>
           </CustomPaper>
         </Container>
@@ -518,12 +523,49 @@ function AuthWrapper() {
           </CustomPaper>
         </Container>
       } />
+      <Route path="/verify" element={
+        <Container maxWidth="sm" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <CustomPaper elevation={3}>
+            <Typography variant="h1" gutterBottom>Verify Email</Typography>
+            <Box sx={{ maxWidth: 400, margin: '0 auto' }}>
+              <form onSubmit={handleVerify}>
+                <Stack spacing={2}>
+                  <TextField
+                    fullWidth
+                    label="Username"
+                    value={verifyUsername}
+                    onChange={(e) => setVerifyUsername(e.target.value)}
+                    variant="outlined"
+                  />
+                  <TextField
+                    fullWidth
+                    label="Verification Code"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    variant="outlined"
+                  />
+                  <Button type="submit" variant="contained" fullWidth sx={{ mt: 2, py: 1.5 }}>
+                    Verify
+                  </Button>
+                  <Button onClick={handleResendCode} variant="outlined" fullWidth sx={{ mt: 1 }}>
+                    Resend Code
+                  </Button>
+                </Stack>
+              </form>
+              <Typography sx={{ mt: 2, color: 'text.secondary', textAlign: 'center' }}>
+                <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Back to Sign In</Link>
+              </Typography>
+            </Box>
+          </CustomPaper>
+        </Container>
+      } />
       <Route path="/profile" element={
         isLoggedIn ? (
           <ProfilePage
             userAttributes={userAttributes}
             setUserAttributes={setUserAttributes}
             fetchUserAttributes={fetchUserAttributes}
+            setVerifyUsername={setVerifyUsername}
           />
         ) : (
           <Navigate to="/login" replace />
@@ -612,7 +654,7 @@ function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName,
   );
 }
 
-function ProfilePage({ userAttributes, setUserAttributes, fetchUserAttributes }) {
+function ProfilePage({ userAttributes, setUserAttributes, fetchUserAttributes, setVerifyUsername }) {
   const [firstName, setFirstName] = useState(userAttributes.given_name || '');
   const [lastName, setLastName] = useState(userAttributes.family_name || '');
   const [email, setEmail] = useState(userAttributes.email || '');
@@ -667,7 +709,12 @@ function ProfilePage({ userAttributes, setUserAttributes, fetchUserAttributes })
       user.updateAttributes(attributes, (err) => {
         setIsUpdating(false);
         if (err) {
-          alert('Update failed: ' + err.message);
+          if (err.code === 'NotAuthorizedException' && err.message.includes('email')) {
+            setVerifyUsername(localStorage.getItem('username'));
+            navigate('/verify');
+          } else {
+            alert('Update failed: ' + err.message);
+          }
           return;
         }
         alert('Profile updated successfully');
