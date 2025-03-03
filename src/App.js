@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
+import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute, CognitoRefreshToken } from 'amazon-cognito-identity-js';
 import { jwtDecode } from 'jwt-decode';
 import {
   AppBar, Toolbar, Typography, Button, Container, Grid, Card, CardContent, CardActions,
@@ -63,7 +63,7 @@ function AuthWrapper() {
       const currentTime = Date.now() / 1000;
       if (decoded.exp > currentTime) {
         setToken(storedToken);
-        setRefreshToken(storedRefreshToken);
+        setRefreshToken(storedToken); // Store the refresh token correctly
         setIsLoggedIn(true);
       } else {
         refreshAuthToken(storedRefreshToken);
@@ -77,10 +77,10 @@ function AuthWrapper() {
     }
   }, [isLoggedIn, token]);
 
-  const refreshAuthToken = (refreshToken) => {
+  const refreshAuthToken = (refreshTokenString) => {
     const user = new CognitoUser({ Username: loginUsername || localStorage.getItem('username'), Pool: userPool });
-    const cognitoRefreshToken = new window.CognitoRefreshToken({ RefreshToken: refreshToken });
-    user.refreshSession(cognitoRefreshToken, (err, session) => {
+    const refreshToken = new CognitoRefreshToken({ RefreshToken: refreshTokenString }); // Use CognitoRefreshToken directly
+    user.refreshSession(refreshToken, (err, session) => {
       if (err) {
         console.error('Failed to refresh token:', err);
         handleLogout();
@@ -97,7 +97,7 @@ function AuthWrapper() {
     const currentTime = Date.now() / 1000;
     let authToken = token;
     if (decoded.exp < currentTime) {
-      refreshAuthToken(refreshToken);
+      refreshAuthToken(localStorage.getItem('refreshToken'));
       authToken = localStorage.getItem('idToken');
     }
     const options = {
@@ -166,12 +166,12 @@ function AuthWrapper() {
     user.authenticateUser(authDetails, {
       onSuccess: (session) => {
         const idToken = session.getIdToken().getJwtToken();
-        const refreshToken = session.getRefreshToken().getToken();
+        const refreshToken = session.getRefreshToken().getToken(); // Get the refresh token string
         localStorage.setItem('idToken', idToken);
-        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('refreshToken', refreshToken); // Store the refresh token string
         localStorage.setItem('username', loginUsername);
         setToken(idToken);
-        setRefreshToken(refreshToken);
+        setRefreshToken(refreshToken); // Update state with the refresh token string
         setIsLoggedIn(true);
         setLoginUsername('');
         setLoginPassword('');
@@ -219,7 +219,7 @@ function AuthWrapper() {
   return (
     <Routes>
       <Route path="/register" element={
-        <Box sx={{ mt: 4 }}>
+        <Container maxWidth="md" sx={{ mt: 4 }}>
           <Typography variant="h1" gutterBottom>Register</Typography>
           <form onSubmit={handleRegister}>
             <TextField fullWidth margin="normal" label="Username" value={regUsername} onChange={(e) => setRegUsername(e.target.value)} />
@@ -232,10 +232,10 @@ function AuthWrapper() {
           <Typography sx={{ mt: 2 }}>
             Already have an account? <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer' }}>Sign In</Link>
           </Typography>
-        </Box>
+        </Container>
       } />
       <Route path="/login" element={
-        <Box sx={{ mt: 4 }}>
+        <Container maxWidth="md" sx={{ mt: 4 }}>
           <Typography variant="h1" gutterBottom>Login</Typography>
           <form onSubmit={handleLogin}>
             <TextField fullWidth margin="normal" label="Username" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
@@ -246,14 +246,13 @@ function AuthWrapper() {
             Don’t have an account? <Link onClick={() => navigate('/register')} sx={{ cursor: 'pointer' }}>Register</Link> | 
             Forgot password? <Link onClick={() => navigate('/recover')} sx={{ cursor: 'pointer' }}>Recover</Link>
           </Typography>
-        </Box>
+        </Container>
       } />
       <Route path="/recover" element={
-        <Box sx={{ mt: 4 }}>
+        <Container maxWidth="md" sx={{ mt: 4 }}>
           <Typography variant="h1" gutterBottom>Password Recovery</Typography>
           <form onSubmit={(e) => {
             e.preventDefault();
-            // Placeholder for password recovery logic (not implemented in Cognito example)
             alert('Password recovery functionality to be implemented with Cognito.');
           }}>
             <TextField fullWidth margin="normal" label="Username or Email" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
@@ -262,7 +261,7 @@ function AuthWrapper() {
           <Typography sx={{ mt: 2 }}>
             Back to <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer' }}>Login</Link>
           </Typography>
-        </Box>
+        </Container>
       } />
       <Route path="/" element={
         isLoggedIn ? (
