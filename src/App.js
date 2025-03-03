@@ -4,71 +4,59 @@ import { jwtDecode } from 'jwt-decode';
 import {
   AppBar, Toolbar, Typography, Button, Container, Grid, Card, CardContent, CardActions,
   TextField, Box, Dialog, DialogTitle, DialogContent, DialogActions, CssBaseline, ThemeProvider,
-  createTheme, Paper, Link, Stack, IconButton, Divider,
+  createTheme, Paper, Link, Stack, Switch, CircularProgress, Avatar,
 } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { styled } from '@mui/system';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import PersonIcon from '@mui/icons-material/Person';
 
 const CustomPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
   borderRadius: 16,
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
   backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff',
 }));
 
-const theme = createTheme({
+const createAppTheme = (mode) => createTheme({
   palette: {
-    mode: 'light', // Default to light mode, toggleable
-    primary: {
-      main: '#2196F3', // Bright blue for primary actions
-    },
-    secondary: {
-      main: '#F50057', // Vibrant pink for secondary actions
-    },
+    mode,
+    primary: { main: '#4CAF50' }, // Green for growth and innovation
+    secondary: { main: '#2196F3' }, // Blue for trust and professionalism
     background: {
-      default: '#F5F7FA', // Light grayish background for a clean look
-      paper: '#FFFFFF',   // White paper for contrast
+      default: mode === 'dark' ? '#121212' : '#F9FAFB',
+      paper: mode === 'dark' ? '#1E293B' : '#FFFFFF',
     },
     text: {
-      primary: '#1A2027', // Dark text for readability
-      secondary: '#6B7280', // Subtle gray for secondary text
-    },
-    action: {
-      hover: 'rgba(33, 150, 243, 0.08)', // Subtle hover effect for buttons
+      primary: mode === 'dark' ? '#E2E8F0' : '#1F2A44',
+      secondary: mode === 'dark' ? '#94A3B8' : '#6B7280',
     },
   },
   typography: {
-    h1: {
-      fontSize: '2.5rem',
-      fontWeight: 700,
-      color: '#1A2027',
-      letterSpacing: '-0.5px',
-      marginBottom: '1rem',
-    },
-    h2: {
-      fontSize: '1.75rem',
-      fontWeight: 600,
-      color: '#1A2027',
-      marginBottom: '0.5rem',
-    },
-    body1: {
-      fontSize: '1rem',
-      color: '#6B7280',
-    },
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h1: { fontSize: '2.25rem', fontWeight: 700, letterSpacing: '-0.025em' },
+    h2: { fontSize: '1.5rem', fontWeight: 600 },
+    body1: { fontSize: '1rem', lineHeight: 1.5 },
   },
   components: {
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          background: mode === 'dark' ? 'linear-gradient(90deg, #1B5E20, #33691E)' : 'linear-gradient(90deg, #4CAF50, #8BC34A)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 12,
           textTransform: 'none',
-          padding: '8px 16px',
+          padding: '10px 20px',
           fontWeight: 600,
-          '&:hover': {
-            backgroundColor: 'rgba(33, 150, 243, 0.12)',
-          },
+          boxShadow: 'none',
+          '&:hover': { backgroundColor: mode === 'dark' ? '#33691E' : 'rgb(76, 175, 80, 0.12)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
         },
       },
     },
@@ -76,16 +64,11 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 8,
-            '& fieldset': {
-              borderColor: '#E5E7EB',
-            },
-            '&:hover fieldset': {
-              borderColor: '#2196F3',
-            },
-            '&.Mui-focused fieldset': {
-              borderColor: '#2196F3',
-            },
+            borderRadius: 12,
+            backgroundColor: mode === 'dark' ? '#2D3748' : '#F9FAFB',
+            '& fieldset': { borderColor: mode === 'dark' ? '#4B5563' : '#D1D5DB' },
+            '&:hover fieldset': { borderColor: '#4CAF50' },
+            '&.Mui-focused fieldset': { borderColor: '#4CAF50' },
           },
         },
       },
@@ -94,41 +77,55 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 16,
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+          border: '1px solid rgba(76, 175, 80, 0.2)',
+          transition: 'transform 0.2s, box-shadow 0.2s',
+          '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' },
         },
       },
     },
   },
 });
 
-function App() {
-  const [darkMode, setDarkMode] = useState(false);
+const userPool = new CognitoUserPool({
+  UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
+  ClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
+});
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
+function App() {
+  const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('darkMode', darkMode);
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode(!darkMode);
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={createAppTheme(darkMode ? 'dark' : 'light')}>
       <CssBaseline />
       <Router>
-        <AppBar position="static" sx={{ boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)' }}>
+        <AppBar position="static">
           <Toolbar sx={{ justifyContent: 'space-between' }}>
-            <Typography variant="h2" sx={{ flexGrow: 1, fontWeight: 700, color: '#FFFFFF' }}>
-              SaaS Platform
+            <Typography variant="h2" sx={{ flexGrow: 1 }}>
+              SaaSify
             </Typography>
-            <IconButton onClick={toggleDarkMode} color="inherit">
-              {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
-            </IconButton>
+            <Switch
+              checked={darkMode}
+              onChange={toggleDarkMode}
+              icon={<Brightness7Icon />}
+              checkedIcon={<Brightness4Icon />}
+              color="default"
+            />
           </Toolbar>
         </AppBar>
-        <AuthWrapper darkMode={darkMode} />
+        <AuthWrapper />
       </Router>
     </ThemeProvider>
   );
 }
 
-function AuthWrapper({ darkMode }) {
+function AuthWrapper() {
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -144,13 +141,11 @@ function AuthWrapper({ darkMode }) {
   const [newProjectName, setNewProjectName] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [showVerify, setShowVerify] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [userAttributes, setUserAttributes] = useState({});
   const navigate = useNavigate();
-
-  const poolData = {
-    UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
-    ClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
-  };
-  const userPool = new CognitoUserPool(poolData);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('idToken');
@@ -162,6 +157,7 @@ function AuthWrapper({ darkMode }) {
         setToken(storedToken);
         setRefreshToken(storedRefreshToken);
         setIsLoggedIn(true);
+        fetchUserAttributes();
       } else {
         refreshAuthToken(storedRefreshToken);
       }
@@ -169,13 +165,11 @@ function AuthWrapper({ darkMode }) {
   }, []);
 
   useEffect(() => {
-    if (isLoggedIn && token) {
-      fetchProjects();
-    }
+    if (isLoggedIn && token) fetchProjects();
   }, [isLoggedIn, token]);
 
   const refreshAuthToken = (refreshTokenString) => {
-    const user = new CognitoUser({ Username: loginUsername || localStorage.getItem('username'), Pool: userPool });
+    const user = new CognitoUser({ Username: localStorage.getItem('username'), Pool: userPool });
     const refreshToken = new CognitoRefreshToken({ RefreshToken: refreshTokenString });
     user.refreshSession(refreshToken, (err, session) => {
       if (err) {
@@ -219,14 +213,54 @@ function AuthWrapper({ darkMode }) {
     }
   };
 
+  const fetchUserAttributes = () => {
+    const user = new CognitoUser({ Username: localStorage.getItem('username'), Pool: userPool });
+    user.getSession((err, session) => {
+      if (err) return;
+      user.getUserAttributes((err, attributes) => {
+        if (err) {
+          console.error('Error fetching attributes:', err);
+          return;
+        }
+        const attrMap = {};
+        attributes.forEach(attr => {
+          attrMap[attr.getName()] = attr.getValue();
+        });
+        setUserAttributes(attrMap);
+      });
+    });
+  };
+
+  const validateRegisterForm = () => {
+    const errors = {};
+    if (!regUsername) errors.username = 'Username is required';
+    if (!regEmail || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(regEmail)) errors.email = 'Valid email is required';
+    if (!regFirstName) errors.firstName = 'First name is required';
+    if (!regLastName) errors.lastName = 'Last name is required';
+    if (!regPassword) errors.password = 'Password is required';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateLoginForm = () => {
+    const errors = {};
+    if (!loginUsername) errors.username = 'Username is required';
+    if (!loginPassword) errors.password = 'Password is required';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (!validateRegisterForm()) return;
+    setIsRegistering(true);
     const attributeList = [
       new CognitoUserAttribute({ Name: 'email', Value: regEmail }),
       new CognitoUserAttribute({ Name: 'given_name', Value: regFirstName }),
       new CognitoUserAttribute({ Name: 'family_name', Value: regLastName }),
     ];
     userPool.signUp(regUsername, regPassword, attributeList, null, (err) => {
+      setIsRegistering(false);
       if (err) {
         alert('Registration failed: ' + err.message);
         return;
@@ -258,10 +292,13 @@ function AuthWrapper({ darkMode }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!validateLoginForm()) return;
+    setIsLoggingIn(true);
     const user = new CognitoUser({ Username: loginUsername, Pool: userPool });
     const authDetails = new AuthenticationDetails({ Username: loginUsername, Password: loginPassword });
     user.authenticateUser(authDetails, {
       onSuccess: (session) => {
+        setIsLoggingIn(false);
         const idToken = session.getIdToken().getJwtToken();
         const refreshToken = session.getRefreshToken().getToken();
         localStorage.setItem('idToken', idToken);
@@ -275,6 +312,7 @@ function AuthWrapper({ darkMode }) {
         navigate('/');
       },
       onFailure: (err) => {
+        setIsLoggingIn(false);
         alert('Login failed: ' + err.message);
       },
     });
@@ -316,37 +354,88 @@ function AuthWrapper({ darkMode }) {
   return (
     <Routes>
       <Route path="/register" element={
-        <Container maxWidth="md" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Container maxWidth="sm" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <CustomPaper elevation={3}>
-            <Typography variant="h1" gutterBottom>Register</Typography>
-            <Box sx={{ maxWidth: 500, margin: '0 auto' }}>
+            <Typography variant="h1" gutterBottom>Create Account</Typography>
+            <Box sx={{ maxWidth: 400, margin: '0 auto' }}>
               <form onSubmit={handleRegister}>
                 <Stack spacing={2}>
-                  <TextField fullWidth margin="normal" label="Username" value={regUsername} onChange={(e) => setRegUsername(e.target.value)} variant="outlined" />
-                  <TextField fullWidth margin="normal" label="Email" type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} variant="outlined" />
-                  <TextField fullWidth margin="normal" label="First Name" value={regFirstName} onChange={(e) => setRegFirstName(e.target.value)} variant="outlined" />
-                  <TextField fullWidth margin="normal" label="Last Name" value={regLastName} onChange={(e) => setRegLastName(e.target.value)} variant="outlined" />
-                  <TextField fullWidth margin="normal" label="Password" type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} variant="outlined" />
-                  <Button type="submit" variant="contained" fullWidth sx={{ mt: 2, py: 1.5 }}>Register</Button>
+                  <TextField
+                    fullWidth
+                    label="Username"
+                    value={regUsername}
+                    onChange={(e) => setRegUsername(e.target.value)}
+                    variant="outlined"
+                    error={!!formErrors.username}
+                    helperText={formErrors.username}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    type="email"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    variant="outlined"
+                    error={!!formErrors.email}
+                    helperText={formErrors.email}
+                  />
+                  <TextField
+                    fullWidth
+                    label="First Name"
+                    value={regFirstName}
+                    onChange={(e) => setRegFirstName(e.target.value)}
+                    variant="outlined"
+                    error={!!formErrors.firstName}
+                    helperText={formErrors.firstName}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Last Name"
+                    value={regLastName}
+                    onChange={(e) => setRegLastName(e.target.value)}
+                    variant="outlined"
+                    error={!!formErrors.lastName}
+                    helperText={formErrors.lastName}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Password"
+                    type="password"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    variant="outlined"
+                    error={!!formErrors.password}
+                    helperText={formErrors.password}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    disabled={isRegistering}
+                    sx={{ mt: 2, py: 1.5 }}
+                  >
+                    {isRegistering ? <CircularProgress size={24} color="inherit" /> : 'Sign Up'}
+                  </Button>
                 </Stack>
               </form>
-              <Typography sx={{ mt: 2, color: theme.palette.text.secondary }}>
-                Already have an account? <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer', color: theme.palette.primary.main }}>Sign In</Link>
+              <Typography sx={{ mt: 2, color: 'text.secondary', textAlign: 'center' }}>
+                Already have an account? <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Sign In</Link>
               </Typography>
               {showVerify && (
-                <Box sx={{ mt: 4, maxWidth: 500, margin: '0 auto' }}>
+                <Box sx={{ mt: 4 }}>
                   <Typography variant="h1" gutterBottom>Verify Email</Typography>
                   <form onSubmit={handleVerify}>
                     <Stack spacing={2}>
                       <TextField
                         fullWidth
-                        margin="normal"
                         label="Verification Code"
                         value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value)}
                         variant="outlined"
                       />
-                      <Button type="submit" variant="contained" fullWidth sx={{ mt: 2, py: 1.5 }}>Verify</Button>
+                      <Button type="submit" variant="contained" fullWidth sx={{ mt: 2, py: 1.5 }}>
+                        Verify
+                      </Button>
                     </Stack>
                   </form>
                 </Box>
@@ -356,58 +445,103 @@ function AuthWrapper({ darkMode }) {
         </Container>
       } />
       <Route path="/login" element={
-        <Container maxWidth="md" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Container maxWidth="sm" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <CustomPaper elevation={3}>
-            <Typography variant="h1" gutterBottom>Login</Typography>
-            <Box sx={{ maxWidth: 500, margin: '0 auto' }}>
+            <Typography variant="h1" gutterBottom>Welcome Back</Typography>
+            <Box sx={{ maxWidth: 400, margin: '0 auto' }}>
               <form onSubmit={handleLogin}>
                 <Stack spacing={2}>
-                  <TextField fullWidth margin="normal" label="Username" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} variant="outlined" />
-                  <TextField fullWidth margin="normal" label="Password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} variant="outlined" />
-                  <Button type="submit" variant="contained" fullWidth sx={{ mt: 2, py: 1.5 }}>Login</Button>
+                  <TextField
+                    fullWidth
+                    label="Username"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    variant="outlined"
+                    error={!!formErrors.username}
+                    helperText={formErrors.username}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Password"
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    variant="outlined"
+                    error={!!formErrors.password}
+                    helperText={formErrors.password}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    disabled={isLoggingIn}
+                    sx={{ mt: 2, py: 1.5 }}
+                  >
+                    {isLoggingIn ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+                  </Button>
                 </Stack>
               </form>
-              <Typography sx={{ mt: 2, color: theme.palette.text.secondary }}>
-                Don’t have an account? <Link onClick={() => navigate('/register')} sx={{ cursor: 'pointer', color: theme.palette.primary.main }}>Register</Link> | 
-                Forgot password? <Link onClick={() => navigate('/recover')} sx={{ cursor: 'pointer', color: theme.palette.primary.main }}>Recover</Link>
+              <Typography sx={{ mt: 2, color: 'text.secondary', textAlign: 'center' }}>
+                Don’t have an account? <Link onClick={() => navigate('/register')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Sign Up</Link> | 
+                Forgot password? <Link onClick={() => navigate('/recover')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Recover</Link>
               </Typography>
             </Box>
           </CustomPaper>
         </Container>
       } />
       <Route path="/recover" element={
-        <Container maxWidth="md" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Container maxWidth="sm" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <CustomPaper elevation={3}>
-            <Typography variant="h1" gutterBottom>Password Recovery</Typography>
-            <Box sx={{ maxWidth: 500, margin: '0 auto' }}>
+            <Typography variant="h1" gutterBottom>Recover Password</Typography>
+            <Box sx={{ maxWidth: 400, margin: '0 auto' }}>
               <form onSubmit={(e) => {
                 e.preventDefault();
                 alert('Password recovery functionality to be implemented with Cognito.');
               }}>
                 <Stack spacing={2}>
-                  <TextField fullWidth margin="normal" label="Username or Email" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} variant="outlined" />
-                  <Button type="submit" variant="contained" fullWidth sx={{ mt: 2, py: 1.5 }}>Recover Password</Button>
+                  <TextField
+                    fullWidth
+                    label="Username or Email"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    variant="outlined"
+                  />
+                  <Button type="submit" variant="contained" fullWidth sx={{ mt: 2, py: 1.5 }}>
+                    Recover Password
+                  </Button>
                 </Stack>
               </form>
-              <Typography sx={{ mt: 2, color: theme.palette.text.secondary }}>
-                Back to <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer', color: theme.palette.primary.main }}>Login</Link>
+              <Typography sx={{ mt: 2, color: 'text.secondary', textAlign: 'center' }}>
+                Back to <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Sign In</Link>
               </Typography>
             </Box>
           </CustomPaper>
         </Container>
       } />
+      <Route path="/profile" element={
+        isLoggedIn ? (
+          <ProfilePage
+            userAttributes={userAttributes}
+            setUserAttributes={setUserAttributes}
+            fetchUserAttributes={fetchUserAttributes}
+          />
+        ) : (
+          <Navigate to="/login" replace />
+        )
+      } />
       <Route path="/" element={
         isLoggedIn ? (
-          <Dashboard 
-            projects={projects} 
-            onCreateProject={() => setOpenDialog(true)} 
-            onDeleteProject={handleDeleteProject} 
-            newProjectName={newProjectName} 
-            setNewProjectName={setNewProjectName} 
-            openDialog={openDialog} 
-            setOpenDialog={setOpenDialog} 
+          <Dashboard
+            projects={projects}
+            onCreateProject={() => setOpenDialog(true)}
+            onDeleteProject={handleDeleteProject}
+            newProjectName={newProjectName}
+            setNewProjectName={setNewProjectName}
+            openDialog={openDialog}
+            setOpenDialog={setOpenDialog}
             handleCreateProject={handleCreateProject}
-            darkMode={darkMode}
+            handleLogout={handleLogout}
+            navigate={navigate}
           />
         ) : (
           <Navigate to="/login" replace />
@@ -417,25 +551,35 @@ function AuthWrapper({ darkMode }) {
   );
 }
 
-function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject, darkMode }) {
+function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject, handleLogout, navigate }) {
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Paper elevation={3} sx={{ width: '100%', maxWidth: 800, p: 3, borderRadius: 16, backgroundColor: darkMode ? '#1A2027' : '#FFFFFF' }}>
-        <Typography variant="h1" gutterBottom>Your Projects</Typography>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h1">Your Projects</Typography>
+        <Box>
+          <Button variant="outlined" color="primary" onClick={() => navigate('/profile')} sx={{ mr: 2 }}>
+            Profile
+          </Button>
+          <Button variant="outlined" color="secondary" onClick={handleLogout}>
+            Logout
+          </Button>
+        </Box>
+      </Box>
+      <Paper elevation={3} sx={{ p: 4, borderRadius: 16 }}>
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
-          <Button variant="contained" color="primary" onClick={onCreateProject} sx={{ borderRadius: 8, py: 1.5 }}>
-            Create Project
+          <Button variant="contained" color="primary" onClick={onCreateProject}>
+            New Project
           </Button>
         </Box>
         <Grid container spacing={3}>
           {projects.map((project) => (
             <Grid item xs={12} sm={6} md={4} key={project.id}>
-              <Card sx={{ borderRadius: 16, backgroundColor: darkMode ? '#2D3748' : '#FFFFFF' }}>
+              <Card>
                 <CardContent>
-                  <Typography variant="h2" sx={{ color: darkMode ? '#FFFFFF' : '#1A2027' }}>{project.name}</Typography>
+                  <Typography variant="h2">{project.name}</Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" color="secondary" onClick={() => onDeleteProject(project.id)} sx={{ borderRadius: 8 }}>
+                  <Button size="small" color="secondary" onClick={() => onDeleteProject(project.id)}>
                     Delete
                   </Button>
                 </CardActions>
@@ -444,8 +588,8 @@ function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName,
           ))}
         </Grid>
       </Paper>
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} PaperProps={{ sx: { borderRadius: 16, backgroundColor: darkMode ? '#1A2027' : '#FFFFFF' } }}>
-        <DialogTitle sx={{ color: darkMode ? '#FFFFFF' : '#1A2027' }}>Create New Project</DialogTitle>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} PaperProps={{ sx: { borderRadius: 16 } }}>
+        <DialogTitle>Create New Project</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -455,16 +599,221 @@ function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName,
             value={newProjectName}
             onChange={(e) => setNewProjectName(e.target.value)}
             variant="outlined"
-            sx={{ backgroundColor: darkMode ? '#2D3748' : '#FFFFFF', borderRadius: 8 }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)} sx={{ color: darkMode ? '#FFFFFF' : '#1A2027' }}>Cancel</Button>
-          <Button onClick={handleCreateProject} variant="contained" sx={{ borderRadius: 8, py: 1.5 }}>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleCreateProject} variant="contained">
             Create
           </Button>
         </DialogActions>
       </Dialog>
+    </Container>
+  );
+}
+
+function ProfilePage({ userAttributes, setUserAttributes, fetchUserAttributes }) {
+  const [firstName, setFirstName] = useState(userAttributes.given_name || '');
+  const [lastName, setLastName] = useState(userAttributes.family_name || '');
+  const [email, setEmail] = useState(userAttributes.email || '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setFirstName(userAttributes.given_name || '');
+    setLastName(userAttributes.family_name || '');
+    setEmail(userAttributes.email || '');
+  }, [userAttributes]);
+
+  const validateProfileForm = () => {
+    const errors = {};
+    if (!firstName) errors.firstName = 'First name is required';
+    if (!lastName) errors.lastName = 'Last name is required';
+    if (!email || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) errors.email = 'Valid email is required';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validatePasswordForm = () => {
+    const errors = {};
+    if (!currentPassword) errors.currentPassword = 'Current password is required';
+    if (!newPassword) errors.newPassword = 'New password is required';
+    if (newPassword !== confirmPassword) errors.confirmPassword = 'Passwords must match';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleUpdateProfile = (e) => {
+    e.preventDefault();
+    if (!validateProfileForm()) return;
+    setIsUpdating(true);
+    const user = new CognitoUser({ Username: localStorage.getItem('username'), Pool: userPool });
+    user.getSession((err) => {
+      if (err) {
+        setIsUpdating(false);
+        alert('Session error: ' + err.message);
+        return;
+      }
+      const attributes = [
+        new CognitoUserAttribute({ Name: 'given_name', Value: firstName }),
+        new CognitoUserAttribute({ Name: 'family_name', Value: lastName }),
+        new CognitoUserAttribute({ Name: 'email', Value: email }),
+      ];
+      user.updateAttributes(attributes, (err) => {
+        setIsUpdating(false);
+        if (err) {
+          alert('Update failed: ' + err.message);
+          return;
+        }
+        alert('Profile updated successfully');
+        fetchUserAttributes();
+      });
+    });
+  };
+
+  const handleChangePassword = (e) => {
+    e.preventDefault();
+    if (!validatePasswordForm()) return;
+    setIsChangingPassword(true);
+    const user = new CognitoUser({ Username: localStorage.getItem('username'), Pool: userPool });
+    user.getSession((err) => {
+      if (err) {
+        setIsChangingPassword(false);
+        alert('Session error: ' + err.message);
+        return;
+      }
+      user.changePassword(currentPassword, newPassword, (err) => {
+        setIsChangingPassword(false);
+        if (err) {
+          alert('Password change failed: ' + err.message);
+          return;
+        }
+        alert('Password changed successfully');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      });
+    });
+  };
+
+  return (
+    <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
+      <CustomPaper elevation={3}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56, mb: 2 }}>
+            <PersonIcon fontSize="large" />
+          </Avatar>
+          <Typography variant="h1">Profile</Typography>
+        </Box>
+        <Box sx={{ maxWidth: 400, margin: '0 auto' }}>
+          <form onSubmit={handleUpdateProfile}>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                label="Username"
+                value={localStorage.getItem('username') || ''}
+                variant="outlined"
+                disabled
+              />
+              <TextField
+                fullWidth
+                label="First Name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                variant="outlined"
+                error={!!formErrors.firstName}
+                helperText={formErrors.firstName}
+              />
+              <TextField
+                fullWidth
+                label="Last Name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                variant="outlined"
+                error={!!formErrors.lastName}
+                helperText={formErrors.lastName}
+              />
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                variant="outlined"
+                error={!!formErrors.email}
+                helperText={formErrors.email}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={isUpdating}
+                sx={{ mt: 2, py: 1.5 }}
+              >
+                {isUpdating ? <CircularProgress size={24} color="inherit" /> : 'Update Profile'}
+              </Button>
+            </Stack>
+          </form>
+          <Typography variant="h2" sx={{ mt: 4, mb: 2 }}>Change Password</Typography>
+          <form onSubmit={handleChangePassword}>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                label="Current Password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                variant="outlined"
+                error={!!formErrors.currentPassword}
+                helperText={formErrors.currentPassword}
+              />
+              <TextField
+                fullWidth
+                label="New Password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                variant="outlined"
+                error={!!formErrors.newPassword}
+                helperText={formErrors.newPassword}
+              />
+              <TextField
+                fullWidth
+                label="Confirm New Password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                variant="outlined"
+                error={!!formErrors.confirmPassword}
+                helperText={formErrors.confirmPassword}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={isChangingPassword}
+                sx={{ mt: 2, py: 1.5 }}
+              >
+                {isChangingPassword ? <CircularProgress size={24} color="inherit" /> : 'Change Password'}
+              </Button>
+            </Stack>
+          </form>
+          <Button
+            variant="outlined"
+            color="secondary"
+            fullWidth
+            sx={{ mt: 3 }}
+            onClick={() => navigate('/')}
+          >
+            Back to Dashboard
+          </Button>
+        </Box>
+      </CustomPaper>
     </Container>
   );
 }
