@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
-import { jwtDecode } from 'jwt-decode'; // Changed from 'import jwtDecode from "jwt-decode"'
+import { jwtDecode } from 'jwt-decode';
 import {
   AppBar, Toolbar, Typography, Button, Container, Grid, Card, CardContent, CardActions,
   TextField, Box, Dialog, DialogTitle, DialogContent, DialogActions, CssBaseline, ThemeProvider,
-  createTheme,
+  createTheme, Link,
 } from '@mui/material';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 const theme = createTheme({
   palette: {
@@ -20,6 +21,17 @@ const theme = createTheme({
 });
 
 function App() {
+  return (
+    <Router>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthWrapper />
+      </ThemeProvider>
+    </Router>
+  );
+}
+
+function AuthWrapper() {
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -35,6 +47,7 @@ function App() {
   const [projects, setProjects] = useState([]);
   const [newProjectName, setNewProjectName] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
+  const navigate = useNavigate();
 
   const poolData = {
     UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
@@ -127,6 +140,7 @@ function App() {
       setRegPassword('');
       setRegFirstName('');
       setRegLastName('');
+      navigate('/login'); // Redirect to login after registration
     });
   };
 
@@ -141,6 +155,7 @@ function App() {
       alert('Email verified successfully. You can now log in.');
       setVerificationCode('');
       setVerifyUsername('');
+      navigate('/login'); // Redirect to login after verification
     });
   };
 
@@ -160,6 +175,7 @@ function App() {
         setIsLoggedIn(true);
         setLoginUsername('');
         setLoginPassword('');
+        navigate('/'); // Redirect to home after login
       },
       onFailure: (err) => {
         alert('Login failed: ' + err.message);
@@ -175,6 +191,7 @@ function App() {
     localStorage.removeItem('idToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('username');
+    navigate('/login'); // Redirect to login after logout
   };
 
   const handleCreateProject = async () => {
@@ -200,82 +217,114 @@ function App() {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>SaaS Platform</Typography>
-          {isLoggedIn && <Button color="inherit" onClick={handleLogout}>Logout</Button>}
-        </Toolbar>
-      </AppBar>
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        {!isLoggedIn ? (
-          <Box>
-            <Typography variant="h1" gutterBottom>Register</Typography>
-            <form onSubmit={handleRegister}>
-              <TextField fullWidth margin="normal" label="Username" value={regUsername} onChange={(e) => setRegUsername(e.target.value)} />
-              <TextField fullWidth margin="normal" label="Email" type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
-              <TextField fullWidth margin="normal" label="First Name" value={regFirstName} onChange={(e) => setRegFirstName(e.target.value)} />
-              <TextField fullWidth margin="normal" label="Last Name" value={regLastName} onChange={(e) => setRegLastName(e.target.value)} />
-              <TextField fullWidth margin="normal" label="Password" type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} />
-              <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>Register</Button>
-            </form>
-
-            <Typography variant="h1" gutterBottom sx={{ mt: 4 }}>Verify Email</Typography>
-            <form onSubmit={handleVerify}>
-              <TextField fullWidth margin="normal" label="Username" value={verifyUsername} onChange={(e) => setVerifyUsername(e.target.value)} />
-              <TextField fullWidth margin="normal" label="Verification Code" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} />
-              <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>Verify</Button>
-            </form>
-
-            <Typography variant="h1" gutterBottom sx={{ mt: 4 }}>Login</Typography>
-            <form onSubmit={handleLogin}>
-              <TextField fullWidth margin="normal" label="Username" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
-              <TextField fullWidth margin="normal" label="Password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
-              <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>Login</Button>
-            </form>
-          </Box>
+    <Routes>
+      <Route path="/register" element={
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h1" gutterBottom>Register</Typography>
+          <form onSubmit={handleRegister}>
+            <TextField fullWidth margin="normal" label="Username" value={regUsername} onChange={(e) => setRegUsername(e.target.value)} />
+            <TextField fullWidth margin="normal" label="Email" type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
+            <TextField fullWidth margin="normal" label="First Name" value={regFirstName} onChange={(e) => setRegFirstName(e.target.value)} />
+            <TextField fullWidth margin="normal" label="Last Name" value={regLastName} onChange={(e) => setRegLastName(e.target.value)} />
+            <TextField fullWidth margin="normal" label="Password" type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} />
+            <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>Register</Button>
+          </form>
+          <Typography sx={{ mt: 2 }}>
+            Already have an account? <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer' }}>Sign In</Link>
+          </Typography>
+        </Box>
+      } />
+      <Route path="/login" element={
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h1" gutterBottom>Login</Typography>
+          <form onSubmit={handleLogin}>
+            <TextField fullWidth margin="normal" label="Username" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
+            <TextField fullWidth margin="normal" label="Password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
+            <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>Login</Button>
+          </form>
+          <Typography sx={{ mt: 2 }}>
+            Don’t have an account? <Link onClick={() => navigate('/register')} sx={{ cursor: 'pointer' }}>Register</Link> | 
+            Forgot password? <Link onClick={() => navigate('/recover')} sx={{ cursor: 'pointer' }}>Recover</Link>
+          </Typography>
+        </Box>
+      } />
+      <Route path="/recover" element={
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h1" gutterBottom>Password Recovery</Typography>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            // Placeholder for password recovery logic (not implemented in Cognito example)
+            alert('Password recovery functionality to be implemented with Cognito.');
+          }}>
+            <TextField fullWidth margin="normal" label="Username or Email" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
+            <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>Recover Password</Button>
+          </form>
+          <Typography sx={{ mt: 2 }}>
+            Back to <Link onClick={() => navigate('/login')} sx={{ cursor: 'pointer' }}>Login</Link>
+          </Typography>
+        </Box>
+      } />
+      <Route path="/" element={
+        isLoggedIn ? (
+          <Dashboard 
+            projects={projects} 
+            onCreateProject={() => setOpenDialog(true)} 
+            onDeleteProject={handleDeleteProject} 
+            newProjectName={newProjectName} 
+            setNewProjectName={setNewProjectName} 
+            openDialog={openDialog} 
+            setOpenDialog={setOpenDialog} 
+            handleCreateProject={handleCreateProject}
+          />
         ) : (
-          <Box>
-            <Typography variant="h1" gutterBottom>Your Projects</Typography>
-            <Button variant="contained" color="primary" onClick={() => setOpenDialog(true)} sx={{ mb: 2 }}>
-              Create Project
-            </Button>
-            <Grid container spacing={3}>
-              {projects.map((project) => (
-                <Grid item xs={12} sm={6} md={4} key={project.id}>
-                  <Card>
-                    <CardContent>
-                      <Typography variant="h5">{project.name}</Typography>
-                    </CardContent>
-                    <CardActions>
-                      <Button size="small" color="secondary" onClick={() => handleDeleteProject(project.id)}>Delete</Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-            <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-              <DialogTitle>Create New Project</DialogTitle>
-              <DialogContent>
-                <TextField
-                  autoFocus
-                  margin="dense"
-                  label="Project Name"
-                  fullWidth
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                />
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-                <Button onClick={handleCreateProject}>Create</Button>
-              </DialogActions>
-            </Dialog>
-          </Box>
-        )}
-      </Container>
-    </ThemeProvider>
+          <Navigate to="/login" replace />
+        )
+      } />
+    </Routes>
+  );
+}
+
+function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject }) {
+  return (
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Typography variant="h1" gutterBottom>Your Projects</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+        <Button variant="contained" color="primary" onClick={onCreateProject}>
+          Create Project
+        </Button>
+      </Box>
+      <Grid container spacing={3}>
+        {projects.map((project) => (
+          <Grid item xs={12} sm={6} md={4} key={project.id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5">{project.name}</Typography>
+              </CardContent>
+              <CardActions>
+                <Button size="small" color="secondary" onClick={() => onDeleteProject(project.id)}>Delete</Button>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Create New Project</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Project Name"
+            fullWidth
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleCreateProject}>Create</Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
   );
 }
 
