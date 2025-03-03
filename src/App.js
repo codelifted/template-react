@@ -14,7 +14,7 @@ import PersonIcon from '@mui/icons-material/Person';
 
 const CustomPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
-  borderRadius: 8,
+  borderRadius: '6px',
   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
   backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff',
 }));
@@ -94,66 +94,14 @@ const userPool = new CognitoUserPool({
 
 function App() {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // Moved from AuthWrapper to App
+  const [token, setToken] = useState(''); // Moved from AuthWrapper to App
+  const [refreshToken, setRefreshToken] = useState(''); // Moved from AuthWrapper to App
+  const navigate = useNavigate();
 
   useEffect(() => {
     localStorage.setItem('darkMode', darkMode);
   }, [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode(!darkMode);
-
-  return (
-    <ThemeProvider theme={createAppTheme(darkMode ? 'dark' : 'light')}>
-      <CssBaseline />
-      <Router>
-        <AppBar position="static">
-          <Toolbar sx={{ justifyContent: 'space-between' }}>
-            <Typography variant="h2" sx={{ flexGrow: 1 }}>
-              Codelifted
-            </Typography>
-            <Box>
-              <Button variant="outlined" color="primary" onClick={() => navigate('/profile')} sx={{ mr: 2 }}>
-                Profile
-              </Button>
-              <Button variant="outlined" color="secondary" onClick={handleLogout}>
-                Logout
-              </Button>
-            </Box>
-            <Switch
-              checked={darkMode}
-              onChange={toggleDarkMode}
-              icon={<Brightness7Icon />}
-              checkedIcon={<Brightness4Icon />}
-              color="default"
-            />
-          </Toolbar>
-        </AppBar>
-        <AuthWrapper />
-      </Router>
-    </ThemeProvider>
-  );
-}
-
-function AuthWrapper() {
-  const [regUsername, setRegUsername] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regFirstName, setRegFirstName] = useState('');
-  const [regLastName, setRegLastName] = useState('');
-  const [verifyUsername, setVerifyUsername] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [token, setToken] = useState('');
-  const [refreshToken, setRefreshToken] = useState('');
-  const [projects, setProjects] = useState([]);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [openDialog, setOpenDialog] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
-  const [userAttributes, setUserAttributes] = useState({});
-  const navigate = useNavigate();
 
   useEffect(() => {
     const storedToken = localStorage.getItem('idToken');
@@ -165,16 +113,11 @@ function AuthWrapper() {
         setToken(storedToken);
         setRefreshToken(storedRefreshToken);
         setIsLoggedIn(true);
-        fetchUserAttributes();
       } else {
         refreshAuthToken(storedRefreshToken);
       }
     }
   }, []);
-
-  useEffect(() => {
-    if (isLoggedIn && token) fetchProjects();
-  }, [isLoggedIn, token]);
 
   const refreshAuthToken = (refreshTokenString) => {
     const user = new CognitoUser({ Username: localStorage.getItem('username'), Pool: userPool });
@@ -190,6 +133,84 @@ function AuthWrapper() {
       setToken(newIdToken);
     });
   };
+
+  const toggleDarkMode = () => setDarkMode(!darkMode);
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setToken('');
+    setRefreshToken('');
+    localStorage.removeItem('idToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('username');
+    navigate('/login');
+  };
+
+  return (
+    <ThemeProvider theme={createAppTheme(darkMode ? 'dark' : 'light')}>
+      <CssBaseline />
+      <AppBar position="static">
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Typography variant="h2" sx={{ flexGrow: 1 }}>
+            Codelifted
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {isLoggedIn && (
+              <>
+                <Button variant="outlined" color="primary" onClick={() => navigate('/profile')} sx={{ mr: 2 }}>
+                  Profile
+                </Button>
+                <Button variant="outlined" color="secondary" onClick={handleLogout} sx={{ mr: 2 }}>
+                  Logout
+                </Button>
+              </>
+            )}
+            <Switch
+              checked={darkMode}
+              onChange={toggleDarkMode}
+              icon={<Brightness7Icon />}
+              checkedIcon={<Brightness4Icon />}
+              color="default"
+            />
+          </Box>
+        </Toolbar>
+      </AppBar>
+      <AuthWrapper
+        isLoggedIn={isLoggedIn}
+        setIsLoggedIn={setIsLoggedIn}
+        token={token}
+        setToken={setToken}
+        refreshToken={refreshToken}
+        setRefreshToken={setRefreshToken}
+        handleLogout={handleLogout}
+        refreshAuthToken={refreshAuthToken}
+      />
+    </ThemeProvider>
+  );
+}
+
+function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken, setRefreshToken, handleLogout, refreshAuthToken }) {
+  const [regUsername, setRegUsername] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [verifyUsername, setVerifyUsername] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [userAttributes, setUserAttributes] = useState({});
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoggedIn && token) fetchProjects();
+  }, [isLoggedIn, token]);
 
   const makeApiCall = async (url, method, body = null) => {
     const decoded = jwtDecode(token);
@@ -350,17 +371,6 @@ function AuthWrapper() {
     });
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setToken('');
-    setRefreshToken('');
-    setProjects([]);
-    localStorage.removeItem('idToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('username');
-    navigate('/login');
-  };
-
   const handleCreateProject = async () => {
     try {
       await makeApiCall('https://backend.hello-world.local.codelifted.com/projects', 'POST', { name: newProjectName });
@@ -389,7 +399,7 @@ function AuthWrapper() {
         <Container maxWidth="sm" sx={{ mt: 4, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <CustomPaper elevation={3}>
             <Typography variant="h1" gutterBottom>Create Account</Typography>
-            <Box sx={{ maxWidth: '500px', margin: '0 auto' }}>
+            <Box sx={{ maxWidth: 400, margin: '0 auto' }}>
               <form onSubmit={handleRegister}>
                 <Stack spacing={2}>
                   <TextField
@@ -861,4 +871,10 @@ function ProfilePage({ userAttributes, setUserAttributes, fetchUserAttributes, s
   );
 }
 
-export default App;
+export default function Root() {
+  return (
+    <Router>
+      <App />
+    </Router>
+  );
+}
