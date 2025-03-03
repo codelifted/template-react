@@ -8,6 +8,7 @@
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.4.6",
     "@mui/material": "^6.4.6",
+    "@mui/system": "^6.4.6",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
@@ -23,7 +24,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "REACT_APP_COGNITO_CLIENT_ID=4bf7vj5dvmh4eiqu96q277vtq8 REACT_APP_COGNITO_IDP_URL=https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_RbT2dWsqW REACT_APP_COGNITO_REGION=eu-west-1 REACT_APP_COGNITO_USER_POOL_ID=eu-west-1_RbT2dWsqW react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

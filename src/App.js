@@ -4,7 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 import {
   AppBar, Toolbar, Typography, Button, Container, Grid, Card, CardContent, CardActions,
   TextField, Box, Dialog, DialogTitle, DialogContent, DialogActions, CssBaseline, ThemeProvider,
-  createTheme, Paper, Link, Stack, Switch, CircularProgress, Avatar,
+  createTheme, Paper, Link, Stack, Switch, CircularProgress, Avatar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { styled } from '@mui/system';
@@ -94,9 +94,9 @@ const userPool = new CognitoUserPool({
 
 function App() {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Moved from AuthWrapper to App
-  const [token, setToken] = useState(''); // Moved from AuthWrapper to App
-  const [refreshToken, setRefreshToken] = useState(''); // Moved from AuthWrapper to App
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState('');
+  const [refreshToken, setRefreshToken] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -206,10 +206,14 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [userAttributes, setUserAttributes] = useState({});
+  const [userPlan, setUserPlan] = useState('free');
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isLoggedIn && token) fetchProjects();
+    if (isLoggedIn && token) {
+      fetchProjects();
+      fetchUserPlan();
+    }
   }, [isLoggedIn, token]);
 
   const makeApiCall = async (url, method, body = null) => {
@@ -239,6 +243,15 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
       setProjects(data.projects);
     } catch (error) {
       console.error('Error fetching projects:', error);
+    }
+  };
+
+  const fetchUserPlan = async () => {
+    try {
+      const data = await makeApiCall('https://backend.hello-world.local.codelifted.com/me', 'GET');
+      setUserPlan(data.plan);
+    } catch (error) {
+      console.error('Error fetching user plan:', error);
     }
   };
 
@@ -357,7 +370,7 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
         setIsLoggedIn(true);
         setLoginUsername('');
         setLoginPassword('');
-        navigate('/');
+        navigate('/pricing');
       },
       onFailure: (err) => {
         setIsLoggingIn(false);
@@ -369,6 +382,22 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
         }
       },
     });
+  };
+
+  const handleChoosePlan = async (plan) => {
+    try {
+      if (plan === 'free') {
+        await makeApiCall('https://backend.hello-world.local.codelifted.com/set-plan', 'POST', { plan: 'free' });
+        setUserPlan('free');
+        navigate('/dashboard');
+      } else if (plan === 'pro') {
+        const response = await makeApiCall('https://backend.hello-world.local.codelifted.com/stripe-checkout', 'POST');
+        window.location.href = response.url;
+      }
+    } catch (error) {
+      console.error('Error choosing plan:', error);
+      alert('Failed to set plan');
+    }
   };
 
   const handleCreateProject = async () => {
@@ -577,6 +606,13 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
           </CustomPaper>
         </Container>
       } />
+      <Route path="/pricing" element={
+        isLoggedIn ? (
+          <PricingPage onChoosePlan={handleChoosePlan} />
+        ) : (
+          <Navigate to="/login" replace />
+        )
+      } />
       <Route path="/profile" element={
         isLoggedIn ? (
           <ProfilePage
@@ -589,7 +625,7 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
           <Navigate to="/login" replace />
         )
       } />
-      <Route path="/" element={
+      <Route path="/dashboard" element={
         isLoggedIn ? (
           <Dashboard
             projects={projects}
@@ -600,25 +636,65 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
             openDialog={openDialog}
             setOpenDialog={setOpenDialog}
             handleCreateProject={handleCreateProject}
+            userPlan={userPlan}
           />
         ) : (
           <Navigate to="/login" replace />
         )
       } />
+      <Route path="/" element={<Navigate to={isLoggedIn ? '/pricing' : '/login'} replace />} />
     </Routes>
   );
 }
 
-function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject }) {
+function PricingPage({ onChoosePlan }) {
+  return (
+    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h1" align="center" gutterBottom>
+        Choose Your Plan
+      </Typography>
+      <Grid container spacing={4} justifyContent="center">
+        <Grid item xs={12} sm={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h2" gutterBottom>Free Plan</Typography>
+              <Typography variant="body1">Basic features for free</Typography>
+              <Typography variant="h3" sx={{ mt: 2 }}>$0 / month</Typography>
+            </CardContent>
+            <CardActions>
+              <Button fullWidth variant="contained" color="primary" onClick={() => onChoosePlan('free')}>
+                Select Free
+              </Button>
+            </CardActions>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h2" gutterBottom>Pro Plan</Typography>
+              <Typography variant="body1">Advanced features for pros</Typography>
+              <Typography variant="h3" sx={{ mt: 2 }}>$10 / month</Typography>
+            </CardContent>
+            <CardActions>
+              <Button fullWidth variant="contained" color="primary" onClick={() => onChoosePlan('pro')}>
+                Select Pro
+              </Button>
+            </CardActions>
+          </Card>
+        </Grid>
+      </Grid>
+    </Container>
+  );
+}
+
+function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject, userPlan }) {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h1">Your Projects</Typography>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
-          <Button variant="contained" color="primary" onClick={onCreateProject}>
-            New Project
-          </Button>
-        </Box>
+        <Typography variant="h1">Your Projects (Plan: {userPlan})</Typography>
+        <Button variant="contained" color="primary" onClick={onCreateProject}>
+          New Project
+        </Button>
       </Box>
       <Grid container spacing={3}>
         {projects.map((project) => (
@@ -671,6 +747,10 @@ function ProfilePage({ userAttributes, setUserAttributes, fetchUserAttributes, s
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchUserAttributes();
+  }, []);
 
   useEffect(() => {
     setFirstName(userAttributes.given_name || '');
@@ -861,7 +941,7 @@ function ProfilePage({ userAttributes, setUserAttributes, fetchUserAttributes, s
             color="secondary"
             fullWidth
             sx={{ mt: 3 }}
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/dashboard')}
           >
             Back to Dashboard
           </Button>
