@@ -92,11 +92,25 @@ const userPool = new CognitoUserPool({
   ClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
 });
 
+// Hardcoded plan details
+const planDetails = {
+  free: {
+    price: '$0 / month',
+    features: ['Basic features', 'Limited projects', 'Community support'],
+  },
+  pro: {
+    price: '$10 / month',
+    features: ['Advanced features', 'Unlimited projects', 'Priority support', 'Analytics dashboard'],
+  },
+};
+
 function App() {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [token, setToken] = useState('');
   const [refreshToken, setRefreshToken] = useState('');
+  const [userPlan, setUserPlan] = useState('free');
+  const [projects, setProjects] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -113,11 +127,52 @@ function App() {
         setToken(storedToken);
         setRefreshToken(storedRefreshToken);
         setIsLoggedIn(true);
+        fetchUserPlan();
+        fetchProjects();
       } else {
         refreshAuthToken(storedRefreshToken);
       }
     }
   }, []);
+
+  const fetchUserPlan = async () => {
+    try {
+      const data = await makeApiCall('https://backend.hello-world.local.codelifted.com/me', 'GET');
+      setUserPlan(data.plan);
+    } catch (error) {
+      console.error('Error fetching user plan:', error);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const data = await makeApiCall('https://backend.hello-world.local.codelifted.com/projects', 'GET');
+      setProjects(data.projects);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
+
+  const makeApiCall = async (url, method, body = null) => {
+    const decoded = jwtDecode(token);
+    const currentTime = Date.now() / 1000;
+    let authToken = token;
+    if (decoded.exp < currentTime) {
+      refreshAuthToken(localStorage.getItem('refreshToken'));
+      authToken = localStorage.getItem('idToken');
+    }
+    const options = {
+      method,
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    };
+    if (body) {
+      options.body = JSON.stringify(body);
+      options.headers['Content-Type'] = 'application/json';
+    }
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error(`Failed to ${method} ${url}`);
+    return response.json();
+  };
 
   const refreshAuthToken = (refreshTokenString) => {
     const user = new CognitoUser({ Username: localStorage.getItem('username'), Pool: userPool });
@@ -131,6 +186,9 @@ function App() {
       const newIdToken = session.getIdToken().getJwtToken();
       localStorage.setItem('idToken', newIdToken);
       setToken(newIdToken);
+      setIsLoggedIn(true);
+      fetchUserPlan();
+      fetchProjects();
     });
   };
 
@@ -140,10 +198,28 @@ function App() {
     setIsLoggedIn(false);
     setToken('');
     setRefreshToken('');
+    setUserPlan('free');
+    setProjects([]);
     localStorage.removeItem('idToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('username');
     navigate('/login');
+  };
+
+  const handleChoosePlan = async (plan) => {
+    try {
+      if (plan === 'free') {
+        await makeApiCall('https://backend.hello-world.local.codelifted.com/set-plan', 'POST', { plan: 'free' });
+        setUserPlan('free');
+        navigate('/dashboard');
+      } else if (plan === 'pro') {
+        const response = await makeApiCall('https://backend.hello-world.local.codelifted.com/stripe-checkout', 'POST');
+        window.location.href = response.url;
+      }
+    } catch (error) {
+      console.error('Error choosing plan:', error);
+      alert('Failed to set plan');
+    }
   };
 
   return (
@@ -157,8 +233,16 @@ function App() {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {isLoggedIn && (
               <>
+                {userPlan === 'free' && (
+                  <Button variant="outlined" color="primary" onClick={() => handleChoosePlan('pro')} sx={{ mr: 2 }}>
+                    Upgrade to Pro
+                  </Button>
+                )}
                 <Button variant="outlined" color="primary" onClick={() => navigate('/profile')} sx={{ mr: 2 }}>
                   Profile
+                </Button>
+                <Button variant="outlined" color="primary" onClick={() => navigate('/billing')} sx={{ mr: 2 }}>
+                  Billing
                 </Button>
                 <Button variant="outlined" color="secondary" onClick={handleLogout} sx={{ mr: 2 }}>
                   Logout
@@ -184,12 +268,23 @@ function App() {
         setRefreshToken={setRefreshToken}
         handleLogout={handleLogout}
         refreshAuthToken={refreshAuthToken}
+        handleChoosePlan={handleChoosePlan}
+        userPlan={userPlan}
+        setUserPlan={setUserPlan}
+        projects={projects}
+        setProjects={setProjects}
+        fetchUserPlan={fetchUserPlan}
+        fetchProjects={fetchProjects}
+        planDetails={planDetails}
       />
     </ThemeProvider>
   );
 }
 
-function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken, setRefreshToken, handleLogout, refreshAuthToken }) {
+function AuthWrapper({
+  isLoggedIn, setIsLoggedIn, token, setToken, refreshToken, setRefreshToken, handleLogout, refreshAuthToken,
+  handleChoosePlan, userPlan, setUserPlan, projects, setProjects, fetchUserPlan, fetchProjects, planDetails
+}) {
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -199,14 +294,12 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
   const [verificationCode, setVerificationCode] = useState('');
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [projects, setProjects] = useState([]);
   const [newProjectName, setNewProjectName] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [userAttributes, setUserAttributes] = useState({});
-  const [userPlan, setUserPlan] = useState('free');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -235,42 +328,6 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
     const response = await fetch(url, options);
     if (!response.ok) throw new Error(`Failed to ${method} ${url}`);
     return response.json();
-  };
-
-  const fetchProjects = async () => {
-    try {
-      const data = await makeApiCall('https://backend.hello-world.local.codelifted.com/projects', 'GET');
-      setProjects(data.projects);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-    }
-  };
-
-  const fetchUserPlan = async () => {
-    try {
-      const data = await makeApiCall('https://backend.hello-world.local.codelifted.com/me', 'GET');
-      setUserPlan(data.plan);
-    } catch (error) {
-      console.error('Error fetching user plan:', error);
-    }
-  };
-
-  const fetchUserAttributes = () => {
-    const user = new CognitoUser({ Username: localStorage.getItem('username'), Pool: userPool });
-    user.getSession((err, session) => {
-      if (err) return;
-      user.getUserAttributes((err, attributes) => {
-        if (err) {
-          console.error('Error fetching attributes:', err);
-          return;
-        }
-        const attrMap = {};
-        attributes.forEach(attr => {
-          attrMap[attr.getName()] = attr.getValue();
-        });
-        setUserAttributes(attrMap);
-      });
-    });
   };
 
   const validateRegisterForm = () => {
@@ -370,7 +427,9 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
         setIsLoggedIn(true);
         setLoginUsername('');
         setLoginPassword('');
-        navigate('/pricing');
+        fetchUserPlan();
+        fetchProjects();
+        navigate('/dashboard');
       },
       onFailure: (err) => {
         setIsLoggingIn(false);
@@ -382,22 +441,6 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
         }
       },
     });
-  };
-
-  const handleChoosePlan = async (plan) => {
-    try {
-      if (plan === 'free') {
-        await makeApiCall('https://backend.hello-world.local.codelifted.com/set-plan', 'POST', { plan: 'free' });
-        setUserPlan('free');
-        navigate('/dashboard');
-      } else if (plan === 'pro') {
-        const response = await makeApiCall('https://backend.hello-world.local.codelifted.com/stripe-checkout', 'POST');
-        window.location.href = response.url;
-      }
-    } catch (error) {
-      console.error('Error choosing plan:', error);
-      alert('Failed to set plan');
-    }
   };
 
   const handleCreateProject = async () => {
@@ -608,7 +651,7 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
       } />
       <Route path="/pricing" element={
         isLoggedIn ? (
-          <PricingPage onChoosePlan={handleChoosePlan} />
+          <PricingPage onChoosePlan={handleChoosePlan} planDetails={planDetails} />
         ) : (
           <Navigate to="/login" replace />
         )
@@ -618,7 +661,23 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
           <ProfilePage
             userAttributes={userAttributes}
             setUserAttributes={setUserAttributes}
-            fetchUserAttributes={fetchUserAttributes}
+            fetchUserAttributes={() => {
+              const user = new CognitoUser({ Username: localStorage.getItem('username'), Pool: userPool });
+              user.getSession((err, session) => {
+                if (err) return;
+                user.getUserAttributes((err, attributes) => {
+                  if (err) {
+                    console.error('Error fetching attributes:', err);
+                    return;
+                  }
+                  const attrMap = {};
+                  attributes.forEach(attr => {
+                    attrMap[attr.getName()] = attr.getValue();
+                  });
+                  setUserAttributes(attrMap);
+                });
+              });
+            }}
             setVerifyUsername={setVerifyUsername}
           />
         ) : (
@@ -637,29 +696,35 @@ function AuthWrapper({ isLoggedIn, setIsLoggedIn, token, setToken, refreshToken,
             setOpenDialog={setOpenDialog}
             handleCreateProject={handleCreateProject}
             userPlan={userPlan}
+            handleChoosePlan={handleChoosePlan}
           />
         ) : (
           <Navigate to="/login" replace />
         )
       } />
-      <Route path="/" element={<Navigate to={isLoggedIn ? '/pricing' : '/login'} replace />} />
+      <Route path="/billing" element={
+        isLoggedIn ? (
+          <BillingPage userPlan={userPlan} handleCancelSubscription={() => handleChoosePlan('free')} planDetails={planDetails} />
+        ) : (
+          <Navigate to="/login" replace />
+        )
+      } />
+      <Route path="/" element={<Navigate to={isLoggedIn ? '/dashboard' : '/login'} replace />} />
     </Routes>
   );
 }
 
-function PricingPage({ onChoosePlan }) {
+function PricingPage({ onChoosePlan, planDetails }) {
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h1" align="center" gutterBottom>
-        Choose Your Plan
-      </Typography>
+      <Typography variant="h1" align="center" gutterBottom>Choose Your Plan</Typography>
       <Grid container spacing={4} justifyContent="center">
         <Grid item xs={12} sm={6}>
           <Card>
             <CardContent>
               <Typography variant="h2" gutterBottom>Free Plan</Typography>
-              <Typography variant="body1">Basic features for free</Typography>
-              <Typography variant="h3" sx={{ mt: 2 }}>$0 / month</Typography>
+              <Typography variant="body1">{planDetails.free.features.join(', ')}</Typography>
+              <Typography variant="h3" sx={{ mt: 2 }}>{planDetails.free.price}</Typography>
             </CardContent>
             <CardActions>
               <Button fullWidth variant="contained" color="primary" onClick={() => onChoosePlan('free')}>
@@ -672,8 +737,8 @@ function PricingPage({ onChoosePlan }) {
           <Card>
             <CardContent>
               <Typography variant="h2" gutterBottom>Pro Plan</Typography>
-              <Typography variant="body1">Advanced features for pros</Typography>
-              <Typography variant="h3" sx={{ mt: 2 }}>$10 / month</Typography>
+              <Typography variant="body1">{planDetails.pro.features.join(', ')}</Typography>
+              <Typography variant="h3" sx={{ mt: 2 }}>{planDetails.pro.price}</Typography>
             </CardContent>
             <CardActions>
               <Button fullWidth variant="contained" color="primary" onClick={() => onChoosePlan('pro')}>
@@ -687,14 +752,17 @@ function PricingPage({ onChoosePlan }) {
   );
 }
 
-function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject, userPlan }) {
+function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName, setNewProjectName, openDialog, setOpenDialog, handleCreateProject, userPlan, handleChoosePlan }) {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h1">Your Projects (Plan: {userPlan})</Typography>
-        <Button variant="contained" color="primary" onClick={onCreateProject}>
-          New Project
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button variant="contained" color="primary" onClick={onCreateProject}>New Project</Button>
+          {userPlan === 'free' && (
+            <Button variant="outlined" color="primary" onClick={() => handleChoosePlan('pro')}>Upgrade to Pro</Button>
+          )}
+        </Box>
       </Box>
       <Grid container spacing={3}>
         {projects.map((project) => (
@@ -704,9 +772,7 @@ function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName,
                 <Typography variant="h2">{project.name}</Typography>
               </CardContent>
               <CardActions>
-                <Button size="small" color="secondary" onClick={() => onDeleteProject(project.id)}>
-                  Delete
-                </Button>
+                <Button size="small" color="secondary" onClick={() => onDeleteProject(project.id)}>Delete</Button>
               </CardActions>
             </Card>
           </Grid>
@@ -727,11 +793,34 @@ function Dashboard({ projects, onCreateProject, onDeleteProject, newProjectName,
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleCreateProject} variant="contained">
-            Create
-          </Button>
+          <Button onClick={handleCreateProject} variant="contained">Create</Button>
         </DialogActions>
       </Dialog>
+    </Container>
+  );
+}
+
+function BillingPage({ userPlan, handleCancelSubscription, planDetails }) {
+  return (
+    <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h1" align="center" gutterBottom>Billing Information</Typography>
+      <Card>
+        <CardContent>
+          <Typography variant="h2" gutterBottom>Current Plan: {userPlan}</Typography>
+          <Typography variant="h3" gutterBottom>Plan Details:</Typography>
+          <ul>
+            {planDetails[userPlan].features.map((feature, index) => (
+              <li key={index}>{feature}</li>
+            ))}
+          </ul>
+          <Typography variant="h3" gutterBottom>Price: {planDetails[userPlan].price}</Typography>
+          {userPlan === 'pro' && (
+            <Button variant="outlined" color="secondary" sx={{ mt: 2 }} onClick={handleCancelSubscription}>
+              Cancel Subscription
+            </Button>
+          )}
+        </CardContent>
+      </Card>
     </Container>
   );
 }
