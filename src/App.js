@@ -107,6 +107,7 @@ const planDetails = {
 function App() {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true); // New loading state to handle token check
   const [token, setToken] = useState('');
   const [refreshToken, setRefreshToken] = useState('');
   const [userPlan, setUserPlan] = useState('free');
@@ -120,18 +121,26 @@ function App() {
   useEffect(() => {
     const storedToken = localStorage.getItem('idToken');
     const storedRefreshToken = localStorage.getItem('refreshToken');
+
     if (storedToken && storedRefreshToken) {
       const decoded = jwtDecode(storedToken);
       const currentTime = Date.now() / 1000;
+
       if (decoded.exp > currentTime) {
+        // Token is valid
         setToken(storedToken);
         setRefreshToken(storedRefreshToken);
         setIsLoggedIn(true);
         fetchUserPlan();
         fetchProjects();
+        setLoading(false);
       } else {
+        // Token expired, refresh it
         refreshAuthToken(storedRefreshToken);
       }
+    } else {
+      // No tokens, user is logged out
+      setLoading(false);
     }
   }, []);
 
@@ -181,14 +190,17 @@ function App() {
       if (err) {
         console.error('Failed to refresh token:', err);
         handleLogout();
+        setLoading(false);
         return;
       }
       const newIdToken = session.getIdToken().getJwtToken();
       localStorage.setItem('idToken', newIdToken);
       setToken(newIdToken);
+      setRefreshToken(refreshTokenString);
       setIsLoggedIn(true);
       fetchUserPlan();
       fetchProjects();
+      setLoading(false);
     });
   };
 
@@ -221,6 +233,14 @@ function App() {
       alert('Failed to set plan');
     }
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <ThemeProvider theme={createAppTheme(darkMode ? 'dark' : 'light')}>
@@ -577,7 +597,7 @@ function AuthWrapper({
                 </Stack>
               </form>
               <Typography sx={{ mt: 2, color: 'text.secondary', textAlign: 'center' }}>
-                Don’t have an account? <Link onClick={() => navigate('/register')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Sign Up</Link> | 
+                Don’t have an account? <Link onClick={() => navigate('/register')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Sign Up</Link> |
                 Forgot password? <Link onClick={() => navigate('/recover')} sx={{ cursor: 'pointer', color: 'primary.main' }}>Recover</Link>
               </Typography>
             </Box>
@@ -873,7 +893,8 @@ function ProfilePage({ userAttributes, setUserAttributes, fetchUserAttributes, s
     user.getSession((err) => {
       if (err) {
         setIsUpdating(false);
-        alert('Session error: ' + err.message);
+        alert('Session error: ' +
+          err.message);
         return;
       }
       const attributes = [
